@@ -1,0 +1,29 @@
+<html>
+  <head>
+    {% if title %}
+    <title>Sensor Monitor -- {{ title }}</title>
+    {% else %}
+    <title>Sensor Monitor</title>
+    {% endif %}
+
+    <script src="/static/underscore.js"></script>
+    <script src="/static/Chart.bundle.js"></script>
+    <script src="/static/jquery-3.1.1.js"></script>
+    <script src="/static/bootstrap-3.3.7-dist/js/bootstrap.js"></script>
+    <script src="/static/main.js"></script>
+    <link href="/static/bootstrap-3.3.7-dist/css/bootstrap.css" rel="stylesheet" media="screen">
+    <link href="/static/main.css" rel="stylesheet" media="screen">
+
+
+  </head>
+  <body>
+    <div id="wrap">
+      <div class="container-fluid">
+        <div class="container">
+          {% block content %}{% endblock %}
+        </div>
+      </div>
+    </div>
+
+  </body>
+</html>
