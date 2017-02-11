@@ -3,6 +3,7 @@
 #include "nRF24L01.h"
 #include "RF24.h"
 #include "printf.h"
+#include "temperature_ds18b20.h"
 
 /* Définition des Pins CE, CSN et connexion de la LED sur ARDUINO */
 #define RF_CE    9
@@ -40,7 +41,7 @@ int nb_sleeps_to_perform = 10;
 
 void setup()
 {
-  strcpy(outgoing.type, "temperature" );
+  strcpy(outgoing.type, "temperature");
   outgoing.value = 0;
 
   radio.begin();
@@ -49,7 +50,6 @@ void setup()
   radio.enableDynamicPayloads();
   radio.openWritingPipe(pipes[1]);
   radio.openReadingPipe(1, pipes[0]);
-  radio.startListening();
   radio.printDetails();
 }
 
@@ -59,6 +59,7 @@ void read_sensor(sensor_float_t &sensor){
 }
 
 void send_radio(){
+
   radio.powerUp();
   radio.openWritingPipe(pipes[1]);
   delay(10);
