@@ -8,7 +8,8 @@
 /* Définition des Pins CE, CSN et connexion de la LED sur ARDUINO */
 #define RF_CE    9
 #define RF_CSN   10
-#define LED_PIN  4
+
+#define SENSOR_PIN 5
 
 RF24 radio(RF_CE, RF_CSN);
 
@@ -35,12 +36,14 @@ sensor_float_t outgoing;
 
 // sleep stuff
 int nb_wake_up_since_last_send = 0;
-int nb_sleeps_to_perform = 10;
+int nb_sleeps_to_perform = 2;
 
-
+TemperatureSensor sensor(SENSOR_PIN);
 
 void setup()
 {
+  Serial.begin(9600);
+  
   strcpy(outgoing.type, "temperature");
   outgoing.value = 0;
 
@@ -53,29 +56,37 @@ void setup()
   radio.printDetails();
 }
 
-void read_sensor(sensor_float_t &sensor){
+void read_sensor(sensor_float_t &sensor_struct){
   // domain specific stuff...
-  sensor.value = 2;
+  Serial.println("Reading sensor value...");
+  sensor_struct.value = sensor.getValue();
+  Serial.print("... OK"); Serial.println(sensor_struct.value);
 }
 
-void send_radio(){
+void send_radio(sensor_float_t &sensor_struct){
 
+  Serial.println("      Beginning sending radio...");
   radio.powerUp();
   radio.openWritingPipe(pipes[1]);
   delay(10);
-  radio.write(&outgoing, sizeof(sensor_float_t) + 1);
+  radio.write(&sensor_struct, sizeof(sensor_float_t) + 1);
   radio.powerDown();
+  Serial.println("     ... End sending radio");
+
 }
 
 void loop()
 {
+  Serial.println("Before sleeping");
   // Enter power down state for 8 s with ADC and BOD module disabled
   LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
   nb_wake_up_since_last_send++;
   outgoing.value += 0.01;
 
+  Serial.print("Nb wake up since last send : "); Serial.println(nb_wake_up_since_last_send);
   if(nb_wake_up_since_last_send < nb_sleeps_to_perform){
-    send_radio();
+    read_sensor(outgoing);
+    send_radio(outgoing);
     nb_wake_up_since_last_send = 0;
   }
 }
