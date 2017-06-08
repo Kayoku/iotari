@@ -4,7 +4,19 @@
  */
 
 #include <SPI.h>
+#include "LowPower.h"
 #include "RF24.h"
+
+#define startFrame 0x02
+#define endFrame 0x03
+
+struct values_we_care_about_s {
+  long HC;
+  long HP;
+  int IINST;
+  boolean HC_OR_HP;
+  unsigned long timestamp;
+};
 
 /****************   Config    *****************/
 /* Détermine le temps d'attente entre chaque envoie (en milliseconde) 
@@ -22,9 +34,12 @@ RF24 radio(7,8);
 /* Adresses (T = transmiter, R = receiver) */
 byte addresses[][8] = {"T-duino", "R-duino"};
 
+/* Tableau de stockage */
+values_we_care_about_s b[50];
+
 void setup() {
   /* Configuration Serial */
-  Serial.begin(115200);
+  Serial.begin(9600);
   Serial.println("Lancement du EDF-duino transmetteur !");
 
   /* Lancement radio */
@@ -35,11 +50,24 @@ void setup() {
   radio.setPALevel(RF24_PA_LOW);
   radio.openWritingPipe(addresses[1]);
   radio.openReadingPipe(1,addresses[0]);
+
+ for(int i = 0 ; i < 1000 ; i++)
+ {
+  b[i].HC = i%250;
+  b[i].HP = i%250;
+  b[i].IINST = i%250;
+  b[i].HC_OR_HP = true;
+  b[i].timestamp = 0;
+ }
 }
 
 void loop() {
+
   radio.stopListening();
   Serial.println("Envoie d'un paquet EDF");
+
+  /* Variable de stockage des caractères reçus */
+  char charIn = 0;
 
   /* Récupération du paquet EDF (à faire) */
   char string_test[14] = "T'es mauvais.";
@@ -48,10 +76,10 @@ void loop() {
   if(!radio.write(&string_test, sizeof(char[14]))) {
     Serial.println("Failed.");
   }
-  
+
   /* On écoute pendant 2 secondes pour voir si on a de nouveaux ordres. */
   Serial.println("On écoute 2 secondes pour voir si on a de nouveaux ordres.");
-  
+
   unsigned long started_waiting_at = millis();
   boolean timeout = false;
 
