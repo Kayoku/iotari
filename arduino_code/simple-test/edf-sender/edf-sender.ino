@@ -35,10 +35,11 @@ struct valuesWeCareAbout {
 /* RF24 Configuration : */
 /* CE : Pin 7 */
 /* CSW : Pin 8 */
-RF24 radio(7,6); 
+RF24 radio(7,8); 
 
 // On crée une instance de SoftwareSerial
 SoftwareSerial* cptSerial;
+SoftwareSerial* cptSerialFake;
 
 /* Adresses (T = transmiter, R = receiver) */
 byte addresses[][8] = {"T-duino", "R-duino"};
@@ -63,7 +64,7 @@ char getCharSimulated(){
 char getChar() {
 
   //return getCharSimulated();
-  while(!cptSerial->available()) {}
+  //while(!cptSerial->available()) {}
   return cptSerial->read() & 0x7F;
 }
 /* Reset le tableau de relevé de valeurs */
@@ -141,6 +142,7 @@ void readFrame() {
   /* Lecture des caractères jusqu'au début
      de la trame */
   while (currentChar != START_FRAME)
+   if(cptSerial->available())
     currentChar = getChar();
 
   Serial.println("Start frame found");
@@ -154,6 +156,7 @@ void readFrame() {
   while (currentChar != END_FRAME)
   {
     /* Lecture d'un caractère */
+    while(!cptSerial->available()) {}
     currentChar = getChar();
 
     /* Soit c'est le début d'une ligne */
@@ -270,7 +273,9 @@ void setup() {
   Serial.println("Lancement du EDF-duino transmetteur !");
 
   /* Configuration Serial for EDF */
-  cptSerial = new SoftwareSerial(8, 9);
+  cptSerialFake = new SoftwareSerial(0,1);
+  cptSerialFake->begin(1200);
+  cptSerial = new SoftwareSerial(2,3);
   cptSerial->begin(1200);
 
   /* Lancement radio */
@@ -284,7 +289,7 @@ void setup() {
 
   initFrame();
   resetTable();
-  radio.stopListening(); 
+  radio.stopListening();
 
 }
 
@@ -311,8 +316,12 @@ void loop() {
   sendTable();
   resetTable();
  }
-
+  
  Serial.print("Bouh");
+ Serial.flush();
+ cptSerialFake->listen();
  LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+ cptSerial->listen();
  Serial.println(" - hehe");
+ Serial.flush();
 }
