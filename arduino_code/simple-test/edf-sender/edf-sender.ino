@@ -18,9 +18,8 @@
 #define LINE_START    0x0A // 0x0A \n
 #define LINE_END      0x0D // 0x0D \r
 #define LINE_LENGTH   30   //      taille de ligne maximum
-#define VALUES_LENGTH 5   //      taille de tableau à enregitrer avant envoie
-
-char sep = ' ';
+#define VALUES_LENGTH 5    //      taille de tableau à enregitrer avant envoie
+#define MODE_TEST     1    //      désactivé pour la "release" (gagne de la mémoire)
 
 struct valuesWeCareAbout {
   long HC;
@@ -37,7 +36,7 @@ struct valuesWeCareAbout {
 /* CSW : Pin 8 */
 RF24 radio(7,8); 
 
-// On crée une instance de SoftwareSerial
+/* On crée deux instances de SoftwareSerial */
 SoftwareSerial* cptSerial;
 SoftwareSerial* cptSerialFake;
 
@@ -51,7 +50,11 @@ int currentIndex;
 /* Variable intermédiaire */
 struct valuesWeCareAbout frame;
 
+/* Séparateur des lignes de la trame */
+char sep = ' ';
+
 /* FOR TEST */
+#if MODE_TEST
 int  __charIndex = 0;
 char __simulatedString[] = ":\nADCO 030622716812 =\r\nOPTARIF HC.. <\r\nISOUSC 30 9\r\nHCHC 035318160 !\r\nHCHP 039061379 9\r\nPTEC HP..  \r\nIINST 001 X\r\nIMAX 029 J\r\nPAPP 00180 *\r\nHHPHC C .\r\nMOTDETAT 000000 B\r?";
 char getCharSimulated(){
@@ -59,19 +62,22 @@ char getCharSimulated(){
   __charIndex = (__charIndex + 1) % 170;
   return c;
 }
+#endif
 
 /* Retourne le prochain caractère en entrée */
 char getChar() {
-
-  //return getCharSimulated();
-  //while(!cptSerial->available()) {}
+  /*return getCharSimulated();*/
+  while(!cptSerial->available()) {}
   return cptSerial->read() & 0x7F;
 }
 /* Reset le tableau de relevé de valeurs */
 void resetTable()
 {
+#if MODE_TEST
   Serial.println("Reset table");
   Serial.flush();
+#endif
+
  for(int i = 0 ; i < VALUES_LENGTH ; i++)
  {
   b[i].HC = 0;
@@ -104,6 +110,7 @@ void initFrame() {
  * dans le tableau.
  */
 void saveFrame() {
+#if MODE_TEST
   Serial.print("Save frame : ");
   Serial.print(frame.HC);
   Serial.print("-");
@@ -113,7 +120,7 @@ void saveFrame() {
   Serial.print("-");
   Serial.println(frame.timestamp);
   Serial.flush();
-  
+#endif
   b[currentIndex] = frame;
   currentIndex++;
 }
@@ -122,9 +129,11 @@ void saveFrame() {
  * est bien initialisée.
  */
 boolean checkFrame() {
+#if MODE_TEST
   Serial.println("Check frame");
   Serial.println(frame.HC);
   Serial.flush();
+#endif
   return frame.HC > 0 &&
          frame.HP > 0 &&
          frame.timestamp > 0;
@@ -134,36 +143,36 @@ boolean checkFrame() {
  * la variable "frame".
  */
 void readFrame() {
+#if MODE_TEST
   Serial.println("Read frame");
   Serial.flush();
+#endif
 
   char currentChar = 0;
 
   /* Lecture des caractères jusqu'au début
      de la trame */
   while (currentChar != START_FRAME)
-   if(cptSerial->available())
-    currentChar = getChar();
+   currentChar = getChar();
 
+#if MODE_TEST
   Serial.println("Start frame found");
   Serial.flush();
-  
+#endif
+
   /* Boucle principale */
   int index = 0;
-  //char line[LINE_LENGTH] = {0};
   String line;
 
   while (currentChar != END_FRAME)
   {
     /* Lecture d'un caractère */
-    while(!cptSerial->available()) {}
     currentChar = getChar();
 
     /* Soit c'est le début d'une ligne */
     if (currentChar == LINE_START)
     {
       line = "";
-      //memset(line, 0, sizeof(line));
       index = 0;
     }
     /* Soit c'est la fin d'une ligne */
@@ -198,15 +207,15 @@ void readFrame() {
         continue;
       }
       line += currentChar;
-      //line[index] = currentChar;
-      //index++;
     }
   }
 
   frame.timestamp = millis();
 
+#if MODE_TEST
   Serial.println("Frame has been read");
   Serial.flush();
+#endif
 }
 
 /* Permet de vider le buffer du serial
@@ -228,9 +237,10 @@ void sendTable() {
    for (int i = 0 ; i < 3 ; i++)
    {
       radio.stopListening();
+#if MODE_TEST
       Serial.println("Send table...");
       Serial.flush();
-
+#endif
       /* Envoie des données */
       radio.write(&b, sizeof(b));
 
@@ -257,12 +267,16 @@ void sendTable() {
        */
       if(!timeout)
       {
+#if MODE_TEST
         Serial.println("Send success !");
         Serial.flush();
+#endif
         break;
       }
+#if MODE_TEST
       Serial.println("Send failed");
       Serial.flush();
+#endif
    }
 }
 
@@ -316,12 +330,16 @@ void loop() {
   sendTable();
   resetTable();
  }
-  
+
+#if MODE_TEST
  Serial.print("Bouh");
  Serial.flush();
+#endif
  cptSerialFake->listen();
  LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
  cptSerial->listen();
+#if MODE_TEST
  Serial.println(" - hehe");
  Serial.flush();
+#endif
 }
