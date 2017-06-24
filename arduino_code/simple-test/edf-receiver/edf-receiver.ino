@@ -6,6 +6,17 @@
 #include <SPI.h>
 #include "RF24.h"
 
+#define VALUES_LENGTH 5    // taille de tableau à enregitrer avant envoie
+
+struct valuesWeCareAbout {
+  byte ID;
+  long HC;
+  long HP;
+  int PAPP;
+  boolean IS_HP;
+  unsigned long timestamp;
+};
+
 /****************   Config    *****************/
 /* RF24 Configuration : */
 /* CE : Pin 7 */
@@ -15,7 +26,30 @@ RF24 radio(7,8);
 /* Adresses (T = transmiter, R = receiver) */
 byte addresses[][8] = {"T-duino", "R-duino"};
 
-bool change_mode = false;
+/* Variable intermédiaire, et tab de stockage */
+struct valuesWeCareAbout b[VALUES_LENGTH];
+struct valuesWeCareAbout frame;
+
+bool checkB()
+{
+  for(int i = 0 ; i < VALUES_LENGTH ; i++)
+    if(b[i].ID != i)
+      return false;
+  return true;
+}
+
+void clearB()
+{
+  for(int i = 0 ; i < VALUES_LENGTH ;i++)
+  {
+    b[i].ID = -1;
+    b[i].HC = -1;
+    b[i].HP = -1;
+    b[i].PAPP = -1;
+    b[i].IS_HP = true;
+    b[i].timestamp = 0;
+  }
+}
 
 void setup() {
   /* Configuration Serial */
@@ -27,7 +61,11 @@ void setup() {
 
   /* A CHANGER : change la distance d'envoie avec d'autres paramètres */
   /* https://arduino-info.wikispaces.com/Nrf24L01-2.4GHz-HowTo : CTRL-f "Range" */
-  radio.setPALevel(RF24_PA_LOW);
+  radio.setPayloadSize(32);
+  radio.setChannel(108);
+  radio.setAutoAck(true);
+  radio.setRetries(15, 15);
+  radio.setDataRate(RF24_2MBPS);
   radio.openWritingPipe(addresses[0]);
   radio.openReadingPipe(1,addresses[1]);
 
@@ -35,21 +73,34 @@ void setup() {
 }
 
 void loop() {
-  char r[14];
-  
-   if(radio.available()){
-      while(radio.available()){
-        radio.read(&r, sizeof(char[14]));
-      }
+  if(radio.available())
+  {
+    long start_millis = millis();
+    for(int i = 0 ; i < VALUES_LENGTH ; i++)
+    {
+      long begin_millis = millis();
+      while(!radio.available() && millis() - begin_millis < 200) {}
 
-      Serial.println("Lecture d'un nouveau paquet !");
-      Serial.println(r);
-      radio.stopListening();
-      if(change_mode){
-        int new_mode = random(0, 3);
-        radio.write(&new_mode, sizeof(int));
-      }
-      change_mode = !change_mode;
-      radio.startListening();
-   }
+      if(millis() - begin_millis > 200)
+       break;
+
+      radio.read(&b[i], sizeof(b[i]));
+
+      if(b[i].ID != i)
+        i--;
+    }
+
+    long millis_total = millis() - start_millis;
+    Serial.print("temps de reception : ");
+    Serial.println(millis_total);
+
+    if(checkB())
+      Serial.println("Tout est ok.");
+    else
+      Serial.println("Des erreurs...");
+
+    /* DO SOMETHING WITH */
+      
+    clearB();
+  }
 }

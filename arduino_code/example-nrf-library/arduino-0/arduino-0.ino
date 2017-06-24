@@ -7,6 +7,18 @@
 
 #include <SPI.h>
 #include "RF24.h"
+#include "nRF24L01.h"
+
+struct valuesWeCareAbout {
+  long HC;
+  long HP;
+  int IINST;
+  int PAPP;
+  boolean IS_HP;
+  unsigned long timestamp;
+};
+
+struct valuesWeCareAbout v;
 
 /****************** User Config ***************************/
 /***      Set this radio as radio number 0 or 1         ***/
@@ -101,12 +113,22 @@ if (role == 1)  {
   if ( role == 0 )
   {
     unsigned long got_time;
-    
+    bool done = false;
     if( radio.available()){
                                                                     // Variable for the received timestamp
-      while (radio.available()) {                                   // While there is data ready
-        radio.read( &got_time, sizeof(unsigned long) );             // Get the payload
+      //while (radio.available()) {                                   // While there is data ready
+      //  radio.read( &got_time, sizeof(unsigned long) );             // Get the payload
+      //}
+
+      while(!done)
+      {
+        done = radio.read(&v, sizeof(v));
       }
+
+      Serial.println("Display v");
+      Serial.print(v.PAPP);
+      Serial.print(" - ");
+      Serial.print(v.timestamp);
      
       radio.stopListening();                                        // First, stop listening so we can talk   
       radio.write( &got_time, sizeof(unsigned long) );              // Send the final one back.      

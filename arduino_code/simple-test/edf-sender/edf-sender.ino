@@ -22,9 +22,9 @@
 #define MODE_TEST     1    //      désactivé pour la "release" (gagne de la mémoire)
 
 struct valuesWeCareAbout {
+  byte ID;
   long HC;
   long HP;
-  int IINST;
   int PAPP;
   boolean IS_HP;
   unsigned long timestamp;
@@ -53,6 +53,9 @@ struct valuesWeCareAbout frame;
 /* Séparateur des lignes de la trame */
 char sep = ' ';
 
+int duree = 0;
+
+
 /* FOR TEST */
 #if MODE_TEST
 int  __charIndex = 0;
@@ -80,12 +83,12 @@ void resetTable()
 
  for(int i = 0 ; i < VALUES_LENGTH ; i++)
  {
-  b[i].HC = 0;
-  b[i].HP = 0;
-  b[i].IINST = 0;
-  b[i].PAPP = 0;
+  b[i].ID = -1;
+  b[i].HC = -1;
+  b[i].HP = -1;
+  b[i].PAPP = -1;
   b[i].IS_HP = false;
-  b[i].timestamp = 0;
+  b[i].timestamp = -1;
  }
 
  currentIndex = 0;
@@ -98,12 +101,12 @@ boolean isLastIndex() {
 
 /* Initialise la variable "frame". */
 void initFrame() {
-  frame.HC = 0;
-  frame.HP = 0;
-  frame.IINST = 0;
-  frame.PAPP = 0;
+  frame.ID = -1;
+  frame.HC = -1;
+  frame.HP = -1;
+  frame.PAPP = -1;
   frame.IS_HP = false;
-  frame.timestamp = 0;
+  frame.timestamp = -1;
 }
 
 /* Sauvegarde la variable "frame" 
@@ -112,6 +115,8 @@ void initFrame() {
 void saveFrame() {
 #if MODE_TEST
   Serial.print("Save frame : ");
+  Serial.print(frame.ID);
+  Serial.print("-");
   Serial.print(frame.HC);
   Serial.print("-");
   Serial.print(frame.HP);
@@ -134,8 +139,9 @@ boolean checkFrame() {
   Serial.println(frame.HC);
   Serial.flush();
 #endif
-  return frame.HC > 0 &&
-         frame.HP > 0 &&
+  return frame.ID >= 0 &&
+         frame.HC >= 0 &&
+         frame.HP >= 0 &&
          frame.timestamp > 0;
 }
 
@@ -193,8 +199,6 @@ void readFrame() {
         frame.HC = value.toInt();
       else if(name_s == "HCHP")
         frame.HP = value.toInt();
-      else if(name_s == "IINST")
-        frame.IINST = value.toInt();
       else if(name_s == "PAPP")
         frame.PAPP = value.toInt();
     }
@@ -211,6 +215,7 @@ void readFrame() {
   }
 
   frame.timestamp = millis();
+  frame.ID = currentIndex;
 
 #if MODE_TEST
   Serial.println("Frame has been read");
@@ -230,53 +235,31 @@ void clearSerial() {
  * 50 derniers relevés.
  */
 void sendTable() {
-  /* Tente 3 fois d'envoyer les données
-   * en espérant un accusé de recep,
+  /* Tente 5s d'envoyer les données
    * sinon on laisse tomber et on passe à la suite
    */
-   for (int i = 0 ; i < 3 ; i++)
+   radio.stopListening();
+#if MODE_TEST
+   Serial.println("Send table...");
+   Serial.flush();
+#endif
+
+   unsigned long start_millis = millis();
+   bool fail = true;
+
+   /* Tant qu'on a pas dépassé 5s, et que
+    * ça n'a pas marché...
+    */
+   while(millis() - start_millis < 5000 && fail)
    {
-      radio.stopListening();
-#if MODE_TEST
-      Serial.println("Send table...");
-      Serial.flush();
-#endif
-      /* Envoie des données */
-      radio.write(&b, sizeof(b));
-
-      /* On rallume la radio */
-      radio.startListening();
-
-      /* On essaie d'avoir l'ack */
-      boolean timeout = false;
-      unsigned long ack_time = millis();
-            
-      /* On voit si on a un message d'ack */
-      while(!radio.available())
-      {
-        /* -5000 Permet de gérer le cas ou millis se reset à 0 */
-        if(millis() - ack_time > 200 || millis() - ack_time < -5000)
-        {
-          timeout = true;
-          break;
-        }
-      }
-
-      /* Si timeout est faux, on a bien envoyé
-       * alors on peut arrêter d'envoyer.
-       */
-      if(!timeout)
-      {
-#if MODE_TEST
-        Serial.println("Send success !");
-        Serial.flush();
-#endif
+    Serial.println("TENTATIVE..");
+    for(int i = 0 ; i < VALUES_LENGTH ; i++)
+    {
+      if(!radio.write(&b[i], sizeof(b[i])))
         break;
-      }
-#if MODE_TEST
-      Serial.println("Send failed");
-      Serial.flush();
-#endif
+    }
+    fail = false;
+    Serial.println("ENVOiE OK");
    }
 }
 
@@ -297,27 +280,30 @@ void setup() {
 
   /* A CHANGER : change la distance d'envoie avec d'autres paramètres */
   /* https://arduino-info.wikispaces.com/Nrf24L01-2.4GHz-HowTo : CTRL-f "Range" */
-  radio.setPALevel(RF24_PA_LOW);
+  radio.setPayloadSize(32);
+  radio.setChannel(108);
+  radio.setAutoAck(true);
+  radio.setRetries(15, 15);
+  radio.setDataRate(RF24_2MBPS);
   radio.openWritingPipe(addresses[1]);
   radio.openReadingPipe(1,addresses[0]);
 
   initFrame();
   resetTable();
   radio.stopListening();
-
 }
 
 void loop() {
 
 /* * Lire nouvelle entrée
  * * Check nouvelle entrée. Si pas bonne, reprendre.
-     * Si index == 48 : lire entrée & envoyer tab 3 fois (jusqu'à accusé) & reset tab 
+     * Si dernier index : lire entrée & envoyer tab & reset tab 
      * Sinon enregistrer entrée dans tab & incrémenter index
    * Dormir en mode oversleepofthedead
  */
  initFrame();
  clearSerial();
- 
+
  do
  {
   readFrame();
@@ -327,16 +313,22 @@ void loop() {
 
  if(isLastIndex())
  {
+  radio.powerUp();
   sendTable();
   resetTable();
  }
 
 #if MODE_TEST
  Serial.print("Bouh");
+ Serial.print(" ");
+ Serial.print(millis() - duree);
+ Serial.print(" ");
  Serial.flush();
 #endif
  cptSerialFake->listen();
- LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+ radio.powerDown();
+ LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_OFF);
+ duree = millis();
  cptSerial->listen();
 #if MODE_TEST
  Serial.println(" - hehe");

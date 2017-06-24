@@ -8,6 +8,18 @@
 #include <SPI.h>
 #include "RF24.h"
 
+
+struct valuesWeCareAbout {
+  long HC;
+  long HP;
+  int IINST;
+  int PAPP;
+  boolean IS_HP;
+  unsigned long timestamp;
+};
+
+struct valuesWeCareAbout v;
+
 /****************** User Config ***************************/
 /***      Set this radio as radio number 0 or 1         ***/
 bool radioNumber = 1;
@@ -52,12 +64,18 @@ void loop() {
 if (role == 1)  {
     
     radio.stopListening();                                    // First, stop listening so we can talk.
-    
+
+    v.HC = 123456;
+    v.HP = 234567;
+    v.IINST = 2;
+    v.PAPP = 349;
+    v.IS_HP = true;
+    v.timestamp = 12;
     
     Serial.println(F("Now sending"));
 
     unsigned long start_time = micros();                             // Take the time, and send it.  This will block until complete
-     if (!radio.write( &start_time, sizeof(unsigned long) )){
+     if (!radio.write( &v, sizeof(v) )){
        Serial.println(F("failed"));
      }
         
