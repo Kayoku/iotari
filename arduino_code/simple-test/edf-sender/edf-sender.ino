@@ -12,14 +12,15 @@
 #include "LowPower.h"
 #include "RF24.h"
 #include <SoftwareSerial.h>
+#include <Time.h>
 
 #define START_FRAME   0x02 // 0x02 STX
 #define END_FRAME     0x03 // 0x03 END
 #define LINE_START    0x0A // 0x0A \n
 #define LINE_END      0x0D // 0x0D \r
 #define LINE_LENGTH   30   //      taille de ligne maximum
-#define VALUES_LENGTH 5    //      taille de tableau à enregitrer avant envoie
-#define MODE_TEST     1    //      désactivé pour la "release" (gagne de la mémoire)
+#define VALUES_LENGTH 3    //      taille de tableau à enregitrer avant envoie
+#define MODE_TEST     0    //      désactivé pour la "release" (gagne de la mémoire)
 
 struct valuesWeCareAbout {
   byte ID;
@@ -54,7 +55,6 @@ struct valuesWeCareAbout frame;
 char sep = ' ';
 
 int duree = 0;
-
 
 /* FOR TEST */
 #if MODE_TEST
@@ -214,7 +214,7 @@ void readFrame() {
     }
   }
 
-  frame.timestamp = millis();
+  frame.timestamp = now();
   frame.ID = currentIndex;
 
 #if MODE_TEST
@@ -259,8 +259,14 @@ void sendTable() {
         break;
     }
     fail = false;
-    Serial.println("ENVOiE OK");
+    Serial.println("ENVOIE OK");
    }
+#if MODE_TEST
+   Serial.print("last envoie = ");
+   Serial.print(now());
+   setTime(0);
+   Serial.flush();
+#endif
 }
 
 
@@ -321,14 +327,15 @@ void loop() {
 #if MODE_TEST
  Serial.print("Bouh");
  Serial.print(" ");
- Serial.print(millis() - duree);
+ Serial.print(now() - duree);
  Serial.print(" ");
  Serial.flush();
 #endif
  cptSerialFake->listen();
  radio.powerDown();
- LowPower.powerDown(SLEEP_2S, ADC_OFF, BOD_OFF);
- duree = millis();
+ LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+ adjustTime(8);
+ duree = now();
  cptSerial->listen();
 #if MODE_TEST
  Serial.println(" - hehe");

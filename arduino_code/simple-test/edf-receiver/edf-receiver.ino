@@ -5,8 +5,9 @@
 
 #include <SPI.h>
 #include "RF24.h"
+#include "Time.h"
 
-#define VALUES_LENGTH 5    // taille de tableau à enregitrer avant envoie
+#define VALUES_LENGTH 3    // taille de tableau à enregitrer avant envoie
 
 struct valuesWeCareAbout {
   byte ID;
@@ -30,6 +31,8 @@ byte addresses[][8] = {"T-duino", "R-duino"};
 struct valuesWeCareAbout b[VALUES_LENGTH];
 struct valuesWeCareAbout frame;
 
+int last_receive = 0;
+
 bool checkB()
 {
   for(int i = 0 ; i < VALUES_LENGTH ; i++)
@@ -48,6 +51,29 @@ void clearB()
     b[i].PAPP = -1;
     b[i].IS_HP = true;
     b[i].timestamp = 0;
+  }
+}
+
+void displayB()
+{
+  for(int i = 0 ; i < VALUES_LENGTH ;i++)
+  {
+    Serial.print("id n°");
+    Serial.print(b[i].ID);
+    Serial.print(" (");
+    if(b[i].IS_HP)
+      Serial.println("HP)");
+    else
+      Serial.println("HC)");
+    Serial.print(" HC : ");
+    Serial.println(b[i].HC);
+    Serial.print(" HP : ");
+    Serial.println(b[i].HP);
+    Serial.print(" PAPP : ");
+    Serial.println(b[i].PAPP);
+    Serial.print(" Time : ");
+    Serial.println(b[i].timestamp);
+    Serial.println("");
   }
 }
 
@@ -75,6 +101,10 @@ void setup() {
 void loop() {
   if(radio.available())
   {
+    Serial.print("last : ");
+    Serial.println(now() - last_receive);
+    last_receive = now();
+    
     long start_millis = millis();
     for(int i = 0 ; i < VALUES_LENGTH ; i++)
     {
@@ -95,7 +125,10 @@ void loop() {
     Serial.println(millis_total);
 
     if(checkB())
+    {
       Serial.println("Tout est ok.");
+      displayB();
+    }
     else
       Serial.println("Des erreurs...");
 
