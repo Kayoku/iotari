@@ -1,2 +1,10 @@
 # iotari
-Communication entre Arduino (Atmega 328/128) et Raspberry (B+) pour récupérer les informations de consommations éléctriques
+
+## But du projet
+
+Création d'un outil domotique permettant de suivre la vie de sa petite maison et d'intéragir avec elle.
+
+## Installation
+
+
+

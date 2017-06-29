@@ -25,7 +25,7 @@ def serial_ports():
     result = []
     for port in ports:
         try:
-            s = serial.Serial(port)
+            s = serial.Serial(port, baudrate=115200)
             s.close()
             result.append(port)
         except (OSError, serial.SerialException):
@@ -34,13 +34,24 @@ def serial_ports():
 
 
 def read_message(serial):
+    start = False
+    cpt = 0
+    while not start:
+        new_byte = ord(serial.read(1))
+        print(new_byte, cpt)
+        if new_byte == 0xFF:
+            cpt += 1
+        else:
+            cpt = 0
+
+        if cpt == 32:
+            start = True
+
     ba = bytearray()
 
-    while True:
-        read_byte = serial.read()
-        if not read_byte:
-            break
-        ba.append(ord(read_byte))
+    read_byte = serial.read(32) 
+    ba = bytearray(read_byte)
+
     if len(ba) == 0:
         return
 
@@ -55,10 +66,12 @@ def read_message(serial):
         print("id 2!")
         # h : arduino int / i : arduino long
         format_ = "=bhhh" # char :id -- int : a -- long: b -- int: c (1+2+4+2)
+    else:
+        format_ = "=hhhf"
 
     print(len(ba))
     print(format_)
-    data = struct.unpack(format_, ba)
+    data = struct.unpack(format_, ba[:10])
     print(data)
 
     print("===========================")
@@ -67,6 +80,6 @@ def read_message(serial):
 if __name__ == '__main__':
     print(serial_ports())
     for ser_port in serial_ports():
-        ser = serial.Serial(ser_port, timeout=3)
+        ser = serial.Serial(ser_port, timeout=3, baudrate=115200)
         for _ in range(3):
             read_message(ser)
