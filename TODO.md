@@ -10,3 +10,9 @@
 # Long terme
 
 * Tutoriel d'installation général du projet.
+* Capteur de température
+* Gestion des capteurs côté serveur.
+	* Quels capteurs sont connectés ?
+* Système d'alerte ? (système communiquant sur télégram ?)
+	* Quand une valeur est considéré comme étrange (mise en place d'un système complet d'alerte)
+	* Quand un capteur est désactivé ? (du coup, enregistrement au préalable des capteurs "fixes" du réseau IoT)
