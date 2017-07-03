@@ -5,6 +5,8 @@
 	* Code émetteur.
 	* Code serveur (réception & serveur).
 
+* Découpage du projet en "module". L'ajout d'un module (par exemple ici, la gestion des capteurs) entraine la création automatique des tables nécessaires en BDD, ainsi que de l'affichage de ce module sur l'interface web.
+
 * Mettre en place une librairie pour gérer plusieurs capteurs. (RF24-RF24Network-RF24Mesh).
 
 # Long terme
